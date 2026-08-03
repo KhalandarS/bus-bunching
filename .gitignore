@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+
+# frontend build artifacts and deps -- built by `npm run build` in app/frontend
+app/frontend/node_modules/
+app/static/dist/

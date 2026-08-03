@@ -1,0 +1,89 @@
+"""
+Processes the raw OSRM route geometry (Marathahalli -> Silk Board, Outer Ring
+Road, Bangalore) into a clean route.json used by the simulation and frontend:
+  - ordered [lat, lon] polyline following the real road
+  - cumulative distance (m) along the polyline for linear referencing
+  - a set of simulated stops placed along the real alignment, with a few
+    labeled at genuine landmark junctions on this corridor (Marathahalli,
+    Kadubeesanahalli, Bellandur, Sarjapur Road Jn, Agara, Iblur Jn, Central
+    Mall Jn, Silk Board). These are real places on this real road; exact
+    official BMTC stop spacing is not claimed -- stops are evenly spaced
+    for simulation purposes.
+"""
+import json
+import math
+
+RAW_PATH = r"C:\Users\Khalandar\Desktop\buncch\app\data\orr_route_raw.json"
+OUT_PATH = r"C:\Users\Khalandar\Desktop\buncch\app\data\route.json"
+
+EARTH_R = 6371000.0
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return 2 * EARTH_R * math.asin(math.sqrt(a))
+
+
+def main():
+    raw = json.load(open(RAW_PATH))
+    coords = raw["routes"][0]["geometry"]["coordinates"]  # [lon, lat]
+
+    cum = [0.0]
+    for i in range(1, len(coords)):
+        d = haversine(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1])
+        cum.append(cum[-1] + d)
+    total_length = cum[-1]
+
+    # Landmarks on this real corridor, approximate fractional position along
+    # the route (0 = Marathahalli end, 1 = Silk Board end). These are real
+    # places on ORR in this real order; positions are estimated, not surveyed.
+    landmarks = [
+        ("Marathahalli Bridge", 0.00),
+        ("Kadubeesanahalli", 0.11),
+        ("Bellandur Gate", 0.24),
+        ("Sarjapur Road Junction", 0.36),
+        ("Agara Lake", 0.47),
+        ("Iblur Junction", 0.58),
+        ("HSR Layout Junction", 0.70),
+        ("Central Mall Junction", 0.84),
+        ("Silk Board Junction", 1.00),
+    ]
+
+    n_stops = 17  # ~730m average spacing over 12.4km -- realistic urban stop density
+    stops = []
+    for i in range(n_stops):
+        frac = i / (n_stops - 1)
+        dist_m = frac * total_length
+        # nearest landmark label if close enough, else generic
+        label = None
+        for name, lf in landmarks:
+            if abs(lf - frac) < (0.5 / n_stops):
+                label = name
+                break
+        stops.append({
+            "index": i,
+            "name": label or f"Stop {i + 1}",
+            "dist_m": dist_m,
+            "is_landmark": label is not None,
+        })
+
+    out = {
+        "corridor_name": "Outer Ring Road: Marathahalli -> Silk Board Junction, Bangalore",
+        "source": "OSRM (router.project-osrm.org), OpenStreetMap road network",
+        "coords_lonlat": coords,
+        "cumulative_m": cum,
+        "total_length_m": total_length,
+        "stops": stops,
+    }
+    json.dump(out, open(OUT_PATH, "w"))
+    print(f"total_length_m={total_length:.1f}  points={len(coords)}  stops={n_stops}")
+    for s in stops:
+        tag = " *" if s["is_landmark"] else ""
+        print(f"  [{s['index']:2d}] {s['dist_m']:8.1f}m  {s['name']}{tag}")
+
+
+if __name__ == "__main__":
+    main()
