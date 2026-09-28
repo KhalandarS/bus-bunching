@@ -2,7 +2,9 @@ import type { Bus, RouteData } from "../types";
 
 // Distance within which buses are considered part of the same "bunch" and get
 // fanned out perpendicular to the road so they render as distinct markers.
-export const BUNCH_DIST_M = 150;
+// Scaled to the real ~4.3km corridor (app/data/route.json) so this still
+// represents a similar visual/time gap between buses as on a longer route.
+export const BUNCH_DIST_M = 75;
 const FAN_SPACING_M = 14;
 
 export function latlonAtDist(rd: RouteData, distM: number): [number, number] {

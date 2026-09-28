@@ -9,6 +9,7 @@ continuously; the frontend can flip control on/off live so you watch the
 import asyncio
 import json
 import os
+import random
 
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
@@ -39,6 +40,12 @@ async def index():
 
 @app.get("/driver")
 async def driver_console():
+    # client-side route handled by React Router -- same SPA shell
+    return FileResponse(os.path.join(DIST_DIR, "index.html"))
+
+
+@app.get("/passenger")
+async def passenger_view():
     # client-side route handled by React Router -- same SPA shell
     return FileResponse(os.path.join(DIST_DIR, "index.html"))
 
@@ -100,9 +107,11 @@ async def _handle_incoming(ws: WebSocket):
             elif t == "resume":
                 state["running"] = True
             elif t == "reset":
-                state["sim"] = Simulation()
+                state["sim"] = Simulation(seed=random.randint(0, 2**31 - 1))
             elif t == "control":
                 state["sim"].set_control(bool(cmd.get("enabled")))
+            elif t == "params":
+                state["sim"].set_params(theta=cmd.get("theta"), speed_gain=cmd.get("speed_gain"))
             elif t == "fast_forward":
                 seconds = max(60.0, min(float(cmd.get("seconds", 600.0)), 3600.0))
                 n_steps = int(seconds / SIM_DT_S)

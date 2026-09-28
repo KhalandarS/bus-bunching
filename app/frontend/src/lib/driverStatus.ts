@@ -1,5 +1,7 @@
 import type { Bus, Snapshot } from "../types";
 import { fmtSS } from "./format";
+import type { Translations } from "../i18n/translations";
+import { translations } from "../i18n/translations";
 
 export type StatusClass = "idle" | "go" | "wait" | "signal";
 
@@ -13,48 +15,50 @@ export interface BusStatus {
 
 // Derives the display status for one bus -- shared by the single-bus screen
 // and the all-buses grid so the two views never disagree.
-export function busStatus(bus: Bus, snap: Snapshot): BusStatus {
+export function busStatus(bus: Bus, snap: Snapshot, t: Translations = translations.kn): BusStatus {
   if (bus.state === "holding") {
     return {
       cls: "wait",
-      labelTxt: "WAIT HERE",
+      labelTxt: t.statusWaitHere,
       countdownTxt: fmtSS(bus.timer_s),
-      reasonTxt: `You're running close behind the bus ahead of you — gap is ${Math.round(bus.forward_headway_s)}s, target is ${Math.round(snap.target_headway_s)}s. Bunching control asked you to hold ${Math.round(bus.current_hold_s)}s extra here so spacing stays even.`,
+      reasonTxt: t.driverReasonHolding(
+        Math.round(bus.forward_headway_s),
+        Math.round(snap.target_headway_s),
+        Math.round(bus.current_hold_s)
+      ),
       speedTxt: "",
     };
   }
   if (bus.state === "dwelling") {
     return {
       cls: "go",
-      labelTxt: "BOARDING",
+      labelTxt: t.statusBoarding,
       countdownTxt: fmtSS(bus.timer_s),
-      reasonTxt: snap.control_enabled
-        ? "Normal stop — your spacing looks fine, no extra wait needed."
-        : "Normal stop. (Bunching control is currently OFF — no spacing checks are being made.)",
+      reasonTxt: snap.control_enabled ? t.driverReasonDwellingOn : t.driverReasonDwellingOff,
       speedTxt: "",
     };
   }
   if (bus.state === "signal_delay") {
     return {
       cls: "signal",
-      labelTxt: "STOPPED AT SIGNAL",
+      labelTxt: t.statusStoppedSignal,
       countdownTxt: fmtSS(bus.timer_s),
-      reasonTxt: "Red light — this is just traffic, not a bunching-control instruction.",
+      reasonTxt: t.driverReasonSignal,
       speedTxt: "",
     };
   }
   if (bus.state === "layover") {
     return {
       cls: "idle",
-      labelTxt: "AT DEPOT",
+      labelTxt: t.statusAtDepot,
       countdownTxt: fmtSS(bus.timer_s),
-      reasonTxt: "Layover before starting the next trip.",
+      reasonTxt: t.driverReasonLayover,
       speedTxt: "",
     };
   }
   // moving
   let speedTxt = "";
-  if (bus.speed_state === "easing") speedTxt = "Cooperative control: easing off slightly — you're crowding the bus ahead.";
-  if (bus.speed_state === "boosting") speedTxt = "Cooperative control: speed up slightly — the bus behind is catching up.";
-  return { cls: "go", labelTxt: "GO", countdownTxt: "", reasonTxt: "Proceed as normal.", speedTxt };
+  if (bus.speed_state === "easing") speedTxt = t.driverSpeedEasing;
+  if (bus.speed_state === "boosting") speedTxt = t.driverSpeedBoosting;
+  return { cls: "go", labelTxt: t.statusGo, countdownTxt: "", reasonTxt: t.driverReasonGoNormal, speedTxt };
 }

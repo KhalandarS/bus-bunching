@@ -3,6 +3,7 @@ export type SpeedState = "normal" | "easing" | "boosting";
 
 export interface Bus {
   id: number;
+  plate: string;
   lat: number;
   lon: number;
   dist_m: number;
@@ -27,6 +28,7 @@ export type SimEvent =
       action: "hold" | "ok" | "unmanaged";
       t: number;
       bus_id: number;
+      bus_plate: string;
       stop: string;
       hold_s: number;
       forward_headway_s: number;
@@ -36,6 +38,7 @@ export type SimEvent =
       action: "speed_ease" | "speed_boost";
       t: number;
       bus_id: number;
+      bus_plate: string;
       stop: null;
       forward_gap_m: number;
       backward_gap_m: number;
@@ -46,6 +49,8 @@ export interface Snapshot {
   t: number;
   control_enabled: boolean;
   target_headway_s: number;
+  theta: number;
+  speed_gain: number;
   buses: Bus[];
   metrics: Metrics;
   events?: SimEvent[];

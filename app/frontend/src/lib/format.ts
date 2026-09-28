@@ -9,3 +9,10 @@ export function fmtMMSS(seconds: number): string {
 export function fmtSS(seconds: number): string {
   return `${Math.max(0, Math.round(seconds))}s`;
 }
+
+// "KA-06-F-1201" -> "F-1201" -- drops the state/RTO code, keeps the part a
+// rider would actually read off the bus's front placard.
+export function shortPlate(plate: string): string {
+  const parts = plate.split("-");
+  return parts.length > 2 ? parts.slice(-2).join("-") : plate;
+}

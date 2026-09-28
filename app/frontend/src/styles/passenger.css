@@ -1,0 +1,131 @@
+.passenger-page {
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+.passenger-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 40px 20px 24px;
+  background: none;
+  border-bottom: none;
+}
+.passenger-header h1 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.passenger-header .back-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.passenger-header .back-link:hover { color: var(--text); }
+
+.stop-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.stop-picker select {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.stop-picker select:focus { outline: none; border-color: var(--accent); }
+
+.control-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.control-status.on { color: var(--good); }
+
+.conn-note {
+  max-width: 560px;
+  margin: 24px auto 0;
+  padding: 0 20px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.arrivals-list {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.arrival-row + .arrival-row { border-top: 1px solid var(--border); }
+
+.arrival-gap {
+  padding: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.arrival-gap.tight { color: var(--bad); }
+
+.arrival-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  cursor: pointer;
+}
+
+.arrival-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.arrival-rank {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.arrival-bus { font-size: 0.85rem; color: var(--muted); }
+
+.arrival-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.arrival-eta {
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.arrival-eta.boarding { color: var(--good); font-size: 1.15rem; }
+.arrival-dist { font-size: 0.8rem; color: var(--muted); }
+
+.arrival-note {
+  margin-top: -10px;
+  padding-bottom: 14px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.arrival-detail {
+  margin: -8px 0 16px;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.arrival-detail li { margin: 6px 0; }

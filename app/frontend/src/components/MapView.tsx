@@ -3,13 +3,15 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Bus, RouteData } from "../types";
 import { computeFannedPositions, latlonAtDist } from "../lib/geo";
+import { shortPlate } from "../lib/format";
+import { useLanguage } from "../context/LanguageContext";
 
 const STATE_COLORS: Record<string, string> = {
-  moving: "#4f9dff",
-  dwelling: "#c8ccd4",
-  holding: "#33c17a",
-  signal_delay: "#ff6b5e",
-  layover: "#555b66",
+  moving: "#2d5ba3",
+  dwelling: "#9a9d9f",
+  holding: "#1c7a4a",
+  signal_delay: "#b8332a",
+  layover: "#5c6167",
 };
 
 interface MarkerEntry {
@@ -27,6 +29,7 @@ interface MapViewProps {
 // virtual DOM diffing for per-frame marker updates, so the map/markers are
 // driven directly via refs rather than re-rendered as React elements.
 export default function MapView({ routeData, buses, onBunchChange }: MapViewProps) {
+  const { lang, t, translateStop } = useLanguage();
   const divRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Record<number, MarkerEntry>>({});
@@ -34,8 +37,16 @@ export default function MapView({ routeData, buses, onBunchChange }: MapViewProp
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
     const map = L.map(divRef.current, { zoomControl: true, attributionControl: true });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    // Satellite imagery for real road/terrain detail, with an OSM-based
+    // labels+roads overlay on top so street names and alignments still read
+    // clearly against the imagery.
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 19,
+      attribution: "&copy; Esri, Maxar, Earthstar Geographics",
+    }).addTo(map);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19,
+      opacity: 0.9,
       attribution: "&copy; OpenStreetMap &copy; CARTO",
     }).addTo(map);
     mapRef.current = map;
@@ -51,40 +62,59 @@ export default function MapView({ routeData, buses, onBunchChange }: MapViewProp
     const map = mapRef.current;
     if (!map || !routeData) return;
 
-    const line = L.polyline(routeData.coords, { color: "#5b6472", weight: 4, opacity: 0.8 });
+    // White casing under the yellow line so the road reads clearly against
+    // busy satellite imagery at any zoom level, not just when zoomed in.
+    const casing = L.polyline(routeData.coords, { color: "#ffffff", weight: 7, opacity: 0.9 });
+    const line = L.polyline(routeData.coords, { color: "#e0a72e", weight: 4, opacity: 0.95 });
+    casing.addTo(map);
     line.addTo(map);
-    map.fitBounds(line.getBounds(), { padding: [24, 24] });
+    map.fitBounds(line.getBounds(), { padding: [40, 40] });
 
     const controlSet = new Set(routeData.control_point_idxs);
     const signalSet = new Set(routeData.signal_idxs);
+    const stopMarkers: L.Layer[] = [];
 
     routeData.stops.forEach((stop) => {
       const isControl = controlSet.has(stop.index);
       const isSignal = signalSet.has(stop.index);
+      const isTerminus = !isControl && !isSignal;
       const pos = latlonAtDist(routeData, stop.dist_m);
 
-      let color = "#5b6472";
-      let radius = 3;
-      if (isControl) {
-        color = "#ffb545";
+      let color = "#2d5ba3"; // terminus (Bus Stand / SIET College Gate)
+      let radius = 7;
+      if (isControl || isSignal) {
+        color = "#b8332a";
         radius = 6;
       }
-      if (isSignal) {
-        color = "#ff6b5e";
-        radius = 5;
-      }
 
-      const marker = L.circleMarker(pos, { radius, color, weight: 2, fillColor: color, fillOpacity: 0.5 }).addTo(map);
-      let label = stop.name;
-      if (isControl) label += " (control point)";
-      if (isSignal) label += " (signal)";
-      marker.bindTooltip(label, { direction: "top" });
+      const marker = L.circleMarker(pos, {
+        radius,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.95,
+      }).addTo(map);
+      stopMarkers.push(marker);
+
+      const translatedName = translateStop(stop.name);
+      let label = translatedName;
+      if (isTerminus) label += t.terminusSuffix;
+      else label += t.controlPointSuffix;
+
+      marker.bindTooltip(label, {
+        permanent: true,
+        direction: "top",
+        offset: [0, -radius - 2],
+        className: "stop-name-label",
+      });
     });
 
     return () => {
+      casing.remove();
       line.remove();
+      stopMarkers.forEach((m) => m.remove());
     };
-  }, [routeData]);
+  }, [routeData, lang, t, translateStop]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -99,28 +129,30 @@ export default function MapView({ routeData, buses, onBunchChange }: MapViewProp
       const pos = positions[bus.id];
       const fillColor = STATE_COLORS[bus.state] || "#fff";
       const isHolding = bus.state === "holding";
-      const speedTag = bus.speed_state === "easing" ? " ▼" : bus.speed_state === "boosting" ? " ▲" : "";
+      const speedTag =
+        bus.speed_state === "easing" ? `<span class="arr">▼</span>` : bus.speed_state === "boosting" ? `<span class="arr">▲</span>` : "";
+      const labelHtml = `<div class="bus-label" style="--bus-color:${fillColor}">${shortPlate(bus.plate)}${speedTag}</div>`;
 
       let entry = markersRef.current[bus.id];
       if (!entry) {
         const marker = L.circleMarker([pos.lat, pos.lon], {
-          radius: isHolding ? 10 : 8,
+          radius: isHolding ? 9 : 7,
           color: "#fff",
           weight: isHolding ? 3 : 2,
           fillColor,
           fillOpacity: 0.95,
         }).addTo(map);
         const label = L.marker([pos.lat, pos.lon], {
-          icon: L.divIcon({ className: "", html: `<div class="bus-label">Bus ${bus.id}${speedTag}</div>`, iconSize: [0, 0] }),
+          icon: L.divIcon({ className: "", html: labelHtml, iconSize: [0, 0] }),
           interactive: false,
         }).addTo(map);
         entry = { marker, label };
         markersRef.current[bus.id] = entry;
       } else {
         entry.marker.setLatLng([pos.lat, pos.lon]);
-        entry.marker.setStyle({ fillColor, radius: isHolding ? 10 : 8, weight: isHolding ? 3 : 2 });
+        entry.marker.setStyle({ fillColor, radius: isHolding ? 9 : 7, weight: isHolding ? 3 : 2 });
         entry.label.setLatLng([pos.lat, pos.lon]);
-        entry.label.setIcon(L.divIcon({ className: "", html: `<div class="bus-label">Bus ${bus.id}${speedTag}</div>`, iconSize: [0, 0] }));
+        entry.label.setIcon(L.divIcon({ className: "", html: labelHtml, iconSize: [0, 0] }));
       }
     });
 

@@ -1,4 +1,4 @@
-"""Route geometry: linear referencing along the real ORR polyline."""
+"""Route geometry: linear referencing along the real Tumkur corridor polyline."""
 import json
 import bisect
 import os
@@ -8,7 +8,8 @@ _ROUTE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "route.json"
 
 class Route:
     def __init__(self, path=_ROUTE_PATH):
-        data = json.load(open(path))
+        with open(path) as f:
+            data = json.load(f)
         self.corridor_name = data["corridor_name"]
         self.coords = data["coords_lonlat"]  # [ [lon,lat], ... ]
         self.cum = data["cumulative_m"]
